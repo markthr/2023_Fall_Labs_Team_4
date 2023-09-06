@@ -9,6 +9,8 @@ Adafruit_MPU6050 mpu;
 const unsigned int ADC_1_CS = 2;
 const unsigned int ADC_2_CS = 17;
 
+float initial_gyr[3];
+
 void setup(void) {
   // Stop the right motor by setting pin 14 low
   // this pin floats high or is pulled
@@ -99,10 +101,43 @@ void setup(void) {
 
   Serial.println("");
   delay(100);
+
+  // set initial position
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  memcpy(initial_gyr, g.gyro.v, __SIZEOF_FLOAT__*3);
+
 }
 
-void loop() {
+// computes v = a*v1 + b*v2
+void lin_comb_3vec(float* v, float a, float* v1, float b, float* v2) {
+  for(int i=1; i < 3; i++) {
+    v[i] = a*v1[i] + b*v2[i];
+  }
+}
 
+// computes v = v1 + v2
+void add_3vec(float* v, float* v1, float* v2) {
+  lin_comb_3vec(v, 1, v1, 1, v2);
+}
+
+// computes v = v1 - v2
+void sub_3vec(float* v, float* v1, float* v2) {
+  lin_comb_3vec(v, 1, v1, -1, v2);
+}
+
+int last_timestamp = 0;
+int delay_timestamp = 0;
+float rotations[] = {90, -180};
+int num_rotations = 2;
+int delay_millis = 2*1000;
+int rot_index = 0;
+float eps_deg = 2; // acceptable error in degrees for taking 2 angles as the same
+float rotation_degrees = 0;
+float rotation_target = rotations[0];
+
+void loop() {
   /* Get new sensor events with the readings */
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
@@ -126,5 +161,52 @@ void loop() {
 
   Serial.print("Temperature: ");
   Serial.print(temp.temperature);
-  Serial.println(" degC");
+  Serial.print(" degC \t");
+
+  Serial.print("Time Step: ");
+  Serial.print(g.timestamp - last_timestamp);
+  Serial.print(" millis \t");
+
+  Serial.print("Rotation Number: ");
+  if(rot_index >= num_rotations) {
+    Serial.print("N/A \t");
+  }
+  else {
+    Serial.print(rot_index);
+    Serial.print(" \t");
+  }
+
+  Serial.print("Rotation: ");
+  Serial.print(rotation_degrees);
+  Serial.println(" degrees");
+
+  float gyr[3];
+  memcpy(gyr, g.gyro.v, __SIZEOF_FLOAT__*3);
+  sub_3vec(gyr, gyr, initial_gyr); // remove any DC offset, will still suffer from slow drift and fast noise
+  float delta_t = ((float)(g.timestamp - last_timestamp))/1000; // change in time between measurements
+  // assuming IMU reasonably well aligned in axis of motion
+  rotation_degrees += delta_t * 57.296 * g.gyro.z; // do simple Riemann sum, convert to degrees first
+  // rotations logic
+  if(rot_index >= num_rotations) {
+    // done with rotations, do nothing
+  }
+  else if (abs(rotation_target - rotation_degrees) > eps_deg) {
+    // have not finished rotation, continue rotating
+    
+    /* MOTOR LOGIC */
+    delay_timestamp = g.timestamp;
+  }
+  else if (rot_index < num_rotations - 1) {
+    // have completed rotation, and have at least one more to do
+    
+    if (g.timestamp - delay_timestamp > delay_millis) { //delay before starting next rotation
+      rotation_target += rotations[++rot_index]; // increment index and update target rotation
+    }
+  }
+  else {
+    // just finished, increase index to mark done
+    rot_index++;
+  }
+
+  last_timestamp = g.timestamp;
 }
