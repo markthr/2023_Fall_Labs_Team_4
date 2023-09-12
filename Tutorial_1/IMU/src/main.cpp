@@ -3,7 +3,30 @@
 
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
+#include <Encoder.h>
 
+const unsigned int M1_ENC_A = 39;
+const unsigned int M1_ENC_B = 38;
+const unsigned int M2_ENC_A = 37;
+const unsigned int M2_ENC_B = 36;
+
+const unsigned int M1_IN_1 = 13;
+const unsigned int M1_IN_2 = 12;
+const unsigned int M2_IN_1 = 25;
+const unsigned int M2_IN_2 = 14;
+
+const unsigned int M1_IN_1_CHANNEL = 8;
+const unsigned int M1_IN_2_CHANNEL = 9;
+const unsigned int M2_IN_1_CHANNEL = 10;
+const unsigned int M2_IN_2_CHANNEL = 11;
+
+const unsigned int M1_I_SENSE = 35;
+const unsigned int M2_I_SENSE = 34;
+
+const unsigned int PWM_VALUE = 450; // Max PWM given 8 bit resolution
+
+const int freq = 5000;
+const int resolution = 10;
 Adafruit_MPU6050 mpu;
 
 const unsigned int ADC_1_CS = 2;
@@ -99,6 +122,25 @@ void setup(void) {
     break;
   }
 
+  pinMode(14, OUTPUT);
+  digitalWrite(14, LOW);
+  delay(100);
+
+  Serial.begin(115200);
+  ledcSetup(M1_IN_1_CHANNEL, freq, resolution);
+  ledcSetup(M1_IN_2_CHANNEL, freq, resolution);
+  ledcSetup(M2_IN_1_CHANNEL, freq, resolution);
+  ledcSetup(M2_IN_2_CHANNEL, freq, resolution);
+
+  ledcAttachPin(M1_IN_1, M1_IN_1_CHANNEL);
+  ledcAttachPin(M1_IN_2, M1_IN_2_CHANNEL);
+  ledcAttachPin(M2_IN_1, M2_IN_1_CHANNEL);
+  ledcAttachPin(M2_IN_2, M2_IN_2_CHANNEL);
+
+  pinMode(M1_I_SENSE, INPUT);
+  pinMode(M2_I_SENSE, INPUT);
+
+
   Serial.println("");
   delay(100);
 
@@ -108,6 +150,27 @@ void setup(void) {
 
   memcpy(initial_gyr, g.gyro.v, __SIZEOF_FLOAT__*3);
 
+}
+
+struct motor{
+  const unsigned int in1;
+  const unsigned int in2;
+  Encoder enc;
+};
+
+void forward(struct motor* m, uint32_t duty){
+  ledcWrite(m->in1, 0);
+  ledcWrite(m->in2, duty);
+}
+
+void backward(struct motor* m, uint32_t duty){
+  ledcWrite(m->in1, duty);
+  ledcWrite(m->in2, 0);
+}
+
+void brake(struct motor* m) {
+  ledcWrite(m->in1, 1023);
+  ledcWrite(m->in2, 1023);
 }
 
 // computes v = a*v1 + b*v2
@@ -143,6 +206,7 @@ void loop() {
   mpu.getEvent(&a, &g, &temp);
 
   /* Print out the values */
+  /*
   Serial.print("Acceleration X: ");
   Serial.print(a.acceleration.x);
   Serial.print(", Y: ");
@@ -150,6 +214,7 @@ void loop() {
   Serial.print(", Z: ");
   Serial.print(a.acceleration.z);
   Serial.print(" m/s^2 \t");
+  */
 
   Serial.print("Rotation X: ");
   Serial.print(g.gyro.x);
@@ -159,13 +224,9 @@ void loop() {
   Serial.print(g.gyro.z);
   Serial.print(" rad/s \t");
 
-  Serial.print("Temperature: ");
-  Serial.print(temp.temperature);
-  Serial.print(" degC \t");
-
-  Serial.print("Time Step: ");
+  Serial.print("dt: ");
   Serial.print(g.timestamp - last_timestamp);
-  Serial.print(" millis \t");
+  Serial.print(" ms \t");
 
   Serial.print("Rotation Number: ");
   if(rot_index >= num_rotations) {
@@ -192,8 +253,12 @@ void loop() {
   }
   else if (abs(rotation_target - rotation_degrees) > eps_deg) {
     // have not finished rotation, continue rotating
-    
-    /* MOTOR LOGIC */
+    if(rotation_target - rotation_degrees > 0) {
+      // rotate left
+    }
+    else {
+
+    }
     delay_timestamp = g.timestamp;
   }
   else if (rot_index < num_rotations - 1) {
