@@ -16,7 +16,9 @@ void setup() {
   ledcAttachPin(BUZZ, BUZZ_CHANNEL);
 }
 
+int i = 0;
+note_t notes[] = {NOTE_C, NOTE_D, NOTE_E, NOTE_F, NOTE_G, NOTE_A, NOTE_B};
 void loop() {
-  ledcWriteNote(BUZZ_CHANNEL, NOTE_C, octave);
-  delay(500);
+    ledcWriteNote(BUZZ_CHANNEL, notes[(i++)%7], octave);
+    delay(500);
 }

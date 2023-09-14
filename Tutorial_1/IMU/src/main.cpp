@@ -3,11 +3,36 @@
 
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
+#include <Encoder.h>
 
+const unsigned int M1_ENC_A = 39;
+const unsigned int M1_ENC_B = 38;
+const unsigned int M2_ENC_A = 37;
+const unsigned int M2_ENC_B = 36;
+
+const unsigned int M1_IN_1 = 13;
+const unsigned int M1_IN_2 = 12;
+const unsigned int M2_IN_1 = 25;
+const unsigned int M2_IN_2 = 14;
+
+const unsigned int M1_IN_1_CHANNEL = 8;
+const unsigned int M1_IN_2_CHANNEL = 9;
+const unsigned int M2_IN_1_CHANNEL = 10;
+const unsigned int M2_IN_2_CHANNEL = 11;
+
+const unsigned int M1_I_SENSE = 35;
+const unsigned int M2_I_SENSE = 34;
+
+const unsigned int PWM_VALUE = 450; // Max PWM given 8 bit resolution
+
+const int freq = 5000;
+const int resolution = 10;
 Adafruit_MPU6050 mpu;
 
 const unsigned int ADC_1_CS = 2;
 const unsigned int ADC_2_CS = 17;
+
+float initial_gyr[3];
 
 void setup(void) {
   // Stop the right motor by setting pin 14 low
@@ -97,17 +122,97 @@ void setup(void) {
     break;
   }
 
+  pinMode(14, OUTPUT);
+  digitalWrite(14, LOW);
+  delay(100);
+
+  Serial.begin(115200);
+  ledcSetup(M1_IN_1_CHANNEL, freq, resolution);
+  ledcSetup(M1_IN_2_CHANNEL, freq, resolution);
+  ledcSetup(M2_IN_1_CHANNEL, freq, resolution);
+  ledcSetup(M2_IN_2_CHANNEL, freq, resolution);
+
+  ledcAttachPin(M1_IN_1, M1_IN_1_CHANNEL);
+  ledcAttachPin(M1_IN_2, M1_IN_2_CHANNEL);
+  ledcAttachPin(M2_IN_1, M2_IN_1_CHANNEL);
+  ledcAttachPin(M2_IN_2, M2_IN_2_CHANNEL);
+
+  pinMode(M1_I_SENSE, INPUT);
+  pinMode(M2_I_SENSE, INPUT);
+
+
   Serial.println("");
   delay(100);
+
+  // set initial position
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  memcpy(initial_gyr, g.gyro.v, __SIZEOF_FLOAT__*3);
+
 }
 
-void loop() {
+struct motor{
+  const unsigned int in1;
+  const unsigned int in2;
+  Encoder* enc;
+};
 
+void forward(struct motor* m, uint32_t duty){
+  ledcWrite(m->in1, 0);
+  ledcWrite(m->in2, duty);
+}
+
+void backward(struct motor* m, uint32_t duty){
+  ledcWrite(m->in1, duty);
+  ledcWrite(m->in2, 0);
+}
+
+void brake(struct motor* m) {
+  ledcWrite(m->in1, 1023);
+  ledcWrite(m->in2, 1023);
+}
+
+// computes v = a*v1 + b*v2
+void lin_comb_3vec(float* v, float a, float* v1, float b, float* v2) {
+  for(int i=1; i < 3; i++) {
+    v[i] = a*v1[i] + b*v2[i];
+  }
+}
+
+// computes v = v1 + v2
+void add_3vec(float* v, float* v1, float* v2) {
+  lin_comb_3vec(v, 1, v1, 1, v2);
+}
+
+// computes v = v1 - v2
+void sub_3vec(float* v, float* v1, float* v2) {
+  lin_comb_3vec(v, 1, v1, -1, v2);
+}
+
+int last_timestamp = 0;
+int delay_timestamp = 0;
+float rotations[] = {90, -180};
+int num_rotations = 2;
+int delay_millis = 2*1000;
+int rot_index = 0;
+float eps_deg = 2; // acceptable error in degrees for taking 2 angles as the same
+float rotation_degrees = 0;
+float rotation_target = rotations[0];
+int duty = 400;
+
+struct motor motors[] = {
+    {M1_IN_1_CHANNEL, M1_IN_2_CHANNEL, NULL},
+    {M2_IN_1_CHANNEL, M2_IN_2_CHANNEL, NULL}};
+bool initialized = false;
+
+void loop() {
   /* Get new sensor events with the readings */
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
   /* Print out the values */
+  /*
   Serial.print("Acceleration X: ");
   Serial.print(a.acceleration.x);
   Serial.print(", Y: ");
@@ -115,8 +220,9 @@ void loop() {
   Serial.print(", Z: ");
   Serial.print(a.acceleration.z);
   Serial.print(" m/s^2 \t");
+  */
 
-  Serial.print("Rotation X: ");
+  Serial.print("Rot_X: ");
   Serial.print(g.gyro.x);
   Serial.print(", Y: ");
   Serial.print(g.gyro.y);
@@ -124,7 +230,86 @@ void loop() {
   Serial.print(g.gyro.z);
   Serial.print(" rad/s \t");
 
-  Serial.print("Temperature: ");
-  Serial.print(temp.temperature);
-  Serial.println(" degC");
+  Serial.print("dt: ");
+  Serial.print(g.timestamp - last_timestamp);
+  Serial.print(" ms \t");
+
+  Serial.print("Rot_Num: ");
+  if(rot_index >= num_rotations) {
+    Serial.print("N/A \t");
+  }
+  else {
+    Serial.print(rot_index);
+    Serial.print(" \t");
+  }
+
+  Serial.print("Rotation: ");
+  Serial.print(rotation_degrees);
+  Serial.print(" deg");
+
+  // Serial.print("time_stamp: ");
+  // Serial.print(g.timestamp);
+  // Serial.print(" ms \t");
+
+  // Serial.print("delay_timestamp: ");
+  // Serial.print(delay_timestamp);
+  // Serial.print(" ms \t");
+  Serial.println();
+
+  float gyr[3];
+  memcpy(gyr, g.gyro.v, __SIZEOF_FLOAT__*3);
+  sub_3vec(gyr, gyr, initial_gyr); // remove any DC offset, will still suffer from slow drift and fast noise
+  float delta_t = ((float)(g.timestamp - last_timestamp))/1000; // change in time between measurements
+  // assuming IMU reasonably well aligned in axis of motion
+  rotation_degrees += delta_t * 57.296 * g.gyro.z; // do simple Riemann sum, convert to degrees first
+  // rotations logic
+  if(rot_index >= num_rotations) {
+    // done with rotations, do nothing
+    // insurance, ensure motors are off
+      forward(&motors[0], 0);
+      forward(&motors[1], 0);
+  }
+  else if (abs(rotation_target - rotation_degrees) > eps_deg) {
+    // have not finished rotation, continue rotating
+    if(rotation_target > rotation_degrees) {
+      // rotate left
+      backward(&motors[0], duty);
+      forward(&motors[1], duty);
+    }
+    else {
+      // rotate right
+      forward(&motors[0], duty);
+      backward(&motors[1], duty);
+    }
+    delay_timestamp = g.timestamp;
+  }
+  else if (rot_index < num_rotations - 1) {
+    // have completed rotation, and have at least one more to do
+    if (g.timestamp - delay_timestamp < 200) { 
+      //brake for 200 ms
+      brake(&motors[0]);
+      brake(&motors[1]);
+    }
+    else if(g.timestamp - delay_timestamp > delay_millis) {
+      // finish the delay before next rotation
+      rotation_target += rotations[++rot_index]; // increment index and update target rotation
+      // insurance, ensure motors are off
+      forward(&motors[0], 0);
+      forward(&motors[1], 0);
+    }
+    else {
+      // release brakes1
+      forward(&motors[0], 0);
+      forward(&motors[1], 0);
+    }
+  }
+  else {
+    // just finished, increase index to mark done
+    // insurance, ensure motors are off
+    forward(&motors[0], 0);
+    forward(&motors[1], 0);
+    rot_index++;
+  }
+
+  last_timestamp = g.timestamp;
 }

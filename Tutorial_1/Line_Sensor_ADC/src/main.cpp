@@ -7,6 +7,15 @@ Adafruit_MCP3008 adc2;
 const unsigned int ADC_1_CS = 2;
 const unsigned int ADC_2_CS = 17;
 
+
+
+bool refl_is_white(int refl_sig) {
+  // lower is more reflective
+  // the white tape of the lab was measured to be ~400-600
+  // black foam of the lab measured to be ~700, choose 600 as the cutoff
+  return refl_sig < 600;
+}
+
 int adc1_buf[8];
 int adc2_buf[8];
 
@@ -16,11 +25,11 @@ void readADC() {
     adc2_buf[i] = adc2.readADC(i);
 
     if (i<7) {
-      Serial.print(adc1_buf[i]); Serial.print("\t");
+      Serial.print(refl_is_white(adc1_buf[i])); Serial.print("\t");
     }
 
     if (i<6) {
-      Serial.print(adc2_buf[i]); Serial.print("\t");
+      Serial.print(refl_is_white(adc2_buf[i])); Serial.print("\t");
     }
   }
 }
@@ -49,6 +58,6 @@ void loop() {
   Serial.print("time: \t"); Serial.print(t_end - t_start); Serial.print("\t");
   Serial.println();
 
-  // delay(100);
+  delay(200);
 
 }
