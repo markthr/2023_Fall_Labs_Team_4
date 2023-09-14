@@ -155,7 +155,7 @@ void setup(void) {
 struct motor{
   const unsigned int in1;
   const unsigned int in2;
-  Encoder enc;
+  Encoder* enc;
 };
 
 void forward(struct motor* m, uint32_t duty){
@@ -199,6 +199,12 @@ int rot_index = 0;
 float eps_deg = 2; // acceptable error in degrees for taking 2 angles as the same
 float rotation_degrees = 0;
 float rotation_target = rotations[0];
+int duty = 400;
+
+struct motor motors[] = {
+    {M1_IN_1_CHANNEL, M1_IN_2_CHANNEL, NULL},
+    {M2_IN_1_CHANNEL, M2_IN_2_CHANNEL, NULL}};
+bool initialized = false;
 
 void loop() {
   /* Get new sensor events with the readings */
@@ -216,7 +222,7 @@ void loop() {
   Serial.print(" m/s^2 \t");
   */
 
-  Serial.print("Rotation X: ");
+  Serial.print("Rot_X: ");
   Serial.print(g.gyro.x);
   Serial.print(", Y: ");
   Serial.print(g.gyro.y);
@@ -228,7 +234,7 @@ void loop() {
   Serial.print(g.timestamp - last_timestamp);
   Serial.print(" ms \t");
 
-  Serial.print("Rotation Number: ");
+  Serial.print("Rot_Num: ");
   if(rot_index >= num_rotations) {
     Serial.print("N/A \t");
   }
@@ -239,7 +245,16 @@ void loop() {
 
   Serial.print("Rotation: ");
   Serial.print(rotation_degrees);
-  Serial.println(" degrees");
+  Serial.print(" deg");
+
+  // Serial.print("time_stamp: ");
+  // Serial.print(g.timestamp);
+  // Serial.print(" ms \t");
+
+  // Serial.print("delay_timestamp: ");
+  // Serial.print(delay_timestamp);
+  // Serial.print(" ms \t");
+  Serial.println();
 
   float gyr[3];
   memcpy(gyr, g.gyro.v, __SIZEOF_FLOAT__*3);
@@ -250,26 +265,49 @@ void loop() {
   // rotations logic
   if(rot_index >= num_rotations) {
     // done with rotations, do nothing
+    // insurance, ensure motors are off
+      forward(&motors[0], 0);
+      forward(&motors[1], 0);
   }
   else if (abs(rotation_target - rotation_degrees) > eps_deg) {
     // have not finished rotation, continue rotating
-    if(rotation_target - rotation_degrees > 0) {
+    if(rotation_target > rotation_degrees) {
       // rotate left
+      backward(&motors[0], duty);
+      forward(&motors[1], duty);
     }
     else {
-
+      // rotate right
+      forward(&motors[0], duty);
+      backward(&motors[1], duty);
     }
     delay_timestamp = g.timestamp;
   }
   else if (rot_index < num_rotations - 1) {
     // have completed rotation, and have at least one more to do
-    
-    if (g.timestamp - delay_timestamp > delay_millis) { //delay before starting next rotation
+    if (g.timestamp - delay_timestamp < 200) { 
+      //brake for 200 ms
+      brake(&motors[0]);
+      brake(&motors[1]);
+    }
+    else if(g.timestamp - delay_timestamp > delay_millis) {
+      // finish the delay before next rotation
       rotation_target += rotations[++rot_index]; // increment index and update target rotation
+      // insurance, ensure motors are off
+      forward(&motors[0], 0);
+      forward(&motors[1], 0);
+    }
+    else {
+      // release brakes1
+      forward(&motors[0], 0);
+      forward(&motors[1], 0);
     }
   }
   else {
     // just finished, increase index to mark done
+    // insurance, ensure motors are off
+    forward(&motors[0], 0);
+    forward(&motors[1], 0);
     rot_index++;
   }
 
