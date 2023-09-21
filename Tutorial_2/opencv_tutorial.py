@@ -28,6 +28,7 @@ plt.show(block=False)
 
 # part 3
 face_detector=cv.CascadeClassifier(cv.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# note the tiny scaling factor. Any bigger and it misses Mateo's face
 results = face_detector.detectMultiScale(img, scaleFactor=1.01,minNeighbors=5,minSize=(32, 32), flags=cv.CASCADE_SCALE_IMAGE)
 faces = img.copy()
 for (x,y,w,h) in results:
@@ -42,6 +43,7 @@ plt.show(block=False)
 img2 = cv.imread('mckenna.jpg')
 img2 = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
 faces2 = img2.copy()
+# note the big scaling factor
 results = face_detector.detectMultiScale(faces2, scaleFactor=1.5,minNeighbors=5,minSize=(32, 32), flags=cv.CASCADE_SCALE_IMAGE)
 for (x,y,w,h) in results:
     cv.rectangle(faces2,(x,y),(x+w,y+h),(0,255,0),2)
