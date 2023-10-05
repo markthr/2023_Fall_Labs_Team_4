@@ -62,9 +62,9 @@ float line_error(void) {
 }
 float line_PID(float err) {
   float out, err_deriv;
-  float kp=1;
-  float kd = .01;
-  float ki = .0001;
+  float kp=256;
+  float kd = 28000;
+  float ki = 0;
   err_deriv = err-err_last;
   err_accum += err;
   out = kp*err + kd*err_deriv + ki*err_accum;
@@ -76,7 +76,7 @@ bool refl_is_white(int refl_sig) {
   // lower is more reflective
   // the white tape of the lab was measured to be ~400-600
   // black foam of the lab measured to be ~700, choose 600 as the cutoff
-  return refl_sig < 700;
+  return refl_sig < 400;
 }
 
 int adc1_buf[8];
@@ -92,6 +92,7 @@ void readADC() {
         line_sense[2*i] = 1;
       }
       else {line_sense[2*i] = 0;}
+      //Serial.print(adc1_buf[i]); Serial.print("\t");
     }
 
     if (i<6) {
@@ -100,7 +101,7 @@ void readADC() {
         line_sense[2*i+1] = 1;
       }
       else {line_sense[2*i+1]=0;}
-    
+      //Serial.print(adc1_buf[i]); Serial.print("\t");
     }
   }
 }
@@ -272,7 +273,7 @@ int rot_index = 0;
 float eps_deg = 2; // acceptable error in degrees for taking 2 angles as the same
 float rotation_degrees = 0;
 float rotation_target = rotations[0];
-int base_speed = 512;
+int base_speed = 375;
 
 
 struct motor motors[] = {
@@ -294,20 +295,19 @@ void loop() {
   rotation_degrees += delta_t * 57.296 * g.gyro.z; // do simple Riemann sum, convert to degrees first
 
   readADC();
-
-  Serial.print(line_error());
   Serial.println();
+
+  //Serial.print(line_error());
+  //Serial.println();
   if (line_PID(line_error()) <= 0) {
     // turn right
     forward(&motors[0], base_speed - line_PID(line_error()));
-    forward(&motors[1], base_speed);
+    forward(&motors[1], base_speed + line_PID(line_error()));
   }
   else {
     //turn left
-    forward(&motors[0], base_speed);
+    forward(&motors[0], base_speed - line_PID(line_error()));
     forward(&motors[1], base_speed + line_PID(line_error()));
   }
-
-  //delay(1000);
-
+  
 }
