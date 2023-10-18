@@ -62,7 +62,7 @@ float line_error(void) {
 }
 float line_PID(float err) {
   float out, err_deriv;
-  float kp=256;
+  float kp = 256;
   float kd = 28000;
   float ki = 0;
   err_deriv = err-err_last;
@@ -70,6 +70,30 @@ float line_PID(float err) {
   out = kp*err + kd*err_deriv + ki*err_accum;
   err_last = err;
   return out;
+}
+
+int intersection_detect(void) {
+  if (line_error() > 1.3) {
+    // left intersection
+    return 1;
+  }
+  else if (line_error() < -1.3) {
+    // right intersection
+    return 2;
+  }
+  else{return 0;}
+}
+
+bool horizontal_detect(void) {
+  int sum = 0;
+  int i;
+  for (i=0;i<13;i++) {
+    sum += line_sense[i];
+  }
+  if (sum > 10) {
+    return sum;
+  }
+  else{return 0;}
 }
 
 bool refl_is_white(int refl_sig) {
@@ -266,14 +290,13 @@ void sub_3vec(float* v, float* v1, float* v2) {
 
 int last_timestamp = 0;
 int delay_timestamp = 0;
-float rotations[] = {90, -180};
-int num_rotations = 2;
 int delay_millis = 2*1000;
 int rot_index = 0;
 float eps_deg = 2; // acceptable error in degrees for taking 2 angles as the same
 float rotation_degrees = 0;
-float rotation_target = rotations[0];
 int base_speed = 375;
+int num_detects = 0;
+int state = 1;
 
 
 struct motor motors[] = {
@@ -281,33 +304,88 @@ struct motor motors[] = {
     {M2_IN_1_CHANNEL, M2_IN_2_CHANNEL, NULL}};
 bool initialized = false;
 
-void loop() {
-
-  sensors_event_t a, g, temp;
-  mpu.getEvent(&a, &g, &temp);
-
-  float gyr[3];
-  memcpy(gyr, g.gyro.v, __SIZEOF_FLOAT__*3);
-
-  sub_3vec(gyr, gyr, initial_gyr); // remove any DC offset, will still suffer from slow drift and fast noise
-  float delta_t = ((float)(g.timestamp - last_timestamp))/1000; // change in time between measurements
-  // assuming IMU reasonably well aligned in axis of motion
-  rotation_degrees += delta_t * 57.296 * g.gyro.z; // do simple Riemann sum, convert to degrees first
-
-  readADC();
-  Serial.println();
-
-  //Serial.print(line_error());
-  //Serial.println();
-  if (line_PID(line_error()) <= 0) {
-    // turn right
-    forward(&motors[0], base_speed - line_PID(line_error()));
-    forward(&motors[1], base_speed + line_PID(line_error()));
+void turn(bool dir, int deg) {
+  float rotation_degrees = 0;
+  if (dir==0) {
+    deg -= 5;   // Error adds up against left turn causing it to turn more left
   }
-  else {
-    //turn left
-    forward(&motors[0], base_speed - line_PID(line_error()));
-    forward(&motors[1], base_speed + line_PID(line_error()));
-  }
+
+  forward(&motors[0], base_speed);
+  forward(&motors[1], base_speed);
+  delay(100);
+  brake(&motors[0]);
+  brake(&motors[1]);
+  delay(10);
   
+  while (abs(deg)>abs(rotation_degrees)) {
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+    float gyr[3];
+    memcpy(gyr, g.gyro.v, __SIZEOF_FLOAT__*3);
+    sub_3vec(gyr, gyr, initial_gyr); // remove any DC offset, will still suffer from slow drift and fast noise
+    float delta_t = ((float)(g.timestamp - last_timestamp))/1000; // change in time between measurements
+    rotation_degrees += delta_t * 57.296 * g.gyro.z; // do simple Riemann sum, convert to degrees first
+
+    if (dir==0) {
+      // turn left
+      backward(&motors[0], base_speed);
+      forward(&motors[1], base_speed+50);
+    }
+    else {
+      // turn right
+      forward(&motors[0], base_speed+50);
+      backward(&motors[1], base_speed);
+    }
+    last_timestamp = g.timestamp;
+  }
+  brake(&motors[0]);
+  brake(&motors[1]);
+  delay(10);
+  return;
+}
+
+void loop() {
+  readADC();
+
+  /*Serial.print(intersection_detect());
+  Serial.print("\t");
+  Serial.print(horizontal_detect());
+  Serial.println(); */
+
+  
+
+  if (state==1) {
+    
+    if (horizontal_detect() == 1) {
+      state == 2;
+    }
+    else if (intersection_detect() == 1) {
+      //turn(0,90);
+    }
+    else if(intersection_detect() == 2) {
+      //turn(1,90);
+    }
+    
+
+    if (line_PID(line_error()) <= 0) {
+      // turn right
+      forward(&motors[0], base_speed - line_PID(line_error()));
+      forward(&motors[1], base_speed + line_PID(line_error()));
+    }
+    else {
+      //turn left
+      forward(&motors[0], base_speed - line_PID(line_error()));
+      forward(&motors[1], base_speed + line_PID(line_error()));
+    } 
+
+  }
+
+  else if(state==2) {
+    brake(&motors[0]);
+    brake(&motors[1]);
+    delay(100);
+    forward(&motors[0], 0);
+    forward(&motors[1], 0);
+  }
+
 }
