@@ -1,0 +1,2 @@
+mateo.jpg from https://www.camdenchat.com/2022/6/3/23152620/baltimore-orioles-jorge-mateo-analysis-2022
+mckenna.jpg from https://www.camdenchat.com/2019/9/26/20875157/orioles-prospect-season-in-review-ryan-mckenna
