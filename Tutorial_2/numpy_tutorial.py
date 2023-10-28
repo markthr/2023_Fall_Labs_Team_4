@@ -1,26 +1,21 @@
 import numpy as np
 
-# Question 3
-arr_one = np.array([1,2,3,4])
-print(f"First Array: {arr_one}")
+a = np.array([1, 2, 3, 4])
+print(a)
 
-# Question 4
-mat_ones = np.ones((3,4))
-print(f"Ones Matrix: \n{mat_ones}")
+b = np.ones((3,4))
+print(b)
 
-# Question 5
-mat_A = np.reshape(np.array([1, 0, 2, 3, -1, 6]), (2,3))
-mat_B = np.reshape(np.array([-5, 3, 0, 0, 7, 0, -1, 1, 4, 0, 1, -2]), (3,4))
-mat_AB = np.matmul(mat_A, mat_B)
-print("Matrix Multiplication:")
-print(f"A = \n{mat_A}")
-print(f"B = \n{mat_B}")
-print(f"AB = \n{mat_AB}")
+c = np.zeros((4,3))
+print(c)
 
-# Question 6
-mat_C = np.reshape(np.array([3, 1, 1, 2]), (2, 2))
-(eigenvalues, eigenvectors) = np.linalg.eig(mat_C)
-print("Findin Eigenpairs:")
-print(f"C = \n{mat_C}")
-print(f"lambda = \n{eigenvalues}")
-print(f"ksi = \n{eigenvectors}")
+A = np.array(([1, 2, 3],[4,5,6]))
+print(A)
+B = np.array(((1,2,3,4),(5,6,7,8),(9, 10, 11, 12)))
+print(B)
+print(A@B)
+
+c = np.array(((3,1),(1,2)))
+[D,V] = np.linalg.eig(c)
+print(D)
+print(V)
