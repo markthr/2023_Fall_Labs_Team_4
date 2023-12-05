@@ -14,6 +14,9 @@ unsigned int local_port = 2390;
 
 U8X8_SSD1306_128X64_NONAME_SW_I2C u8x8(/* clock=*/ 15, /* data=*/ 4, /* reset=*/ 16);
 
+char packetBuffer[255]; //buffer to hold incoming packet
+char ReplyBuffer[] = "acknowledged"; // a string to send back
+
 // based on https://robotzero.one/heltec-wifi-kit-32/
 
 static void sweepNetwork();
@@ -23,13 +26,15 @@ WiFiUDP Udp;
 
 void setup() {
   setup_motors();
-  WiFi.mode(WIFI_STA);
+  Serial.begin(115200);
   WiFi.disconnect();
-  WiFi.config(IPAddress(10, 0, 0, 156), //IP
-    IPAddress(8,8,8,8), //DNS
-    IPAddress(10,0,0,1) //GATEWAY
-    //IPAddress(255,255,255,0) //SUBNET
-    );
+  Serial.println("Startup");
+  WiFi.mode(WIFI_STA);
+  // WiFi.config(IPAddress(10, 0, 0, 156), //IP
+  //   IPAddress(8,8,8,8), //DNS
+  //   IPAddress(192,168,4,255) //GATEWAY
+  //   //IPAddress(255,255,255,0) //SUBNET
+  //   );
   delay(100);
 
   u8x8.begin();
@@ -53,11 +58,35 @@ struct motor motors[] = {{M1_IN_1_CHANNEL, M1_IN_2_CHANNEL}, {M2_IN_1_CHANNEL, M
 
 
 void loop() {
-  IPAddress remote_ip = Udp.remoteIP();
+  Serial.println("Loop");
   forward(&motors[0], 0);
   forward(&motors[1], 0);
   // print networks on OLED
   //sweepNetwork();
+  int packetSize = Udp.parsePacket();
+  IPAddress remote_ip = Udp.remoteIP();
+  Serial.println(WiFi.localIP());
+  Serial.println(WiFi.getHostname());
+  if (packetSize) {
+    Serial.print("Received packet of size ");
+    Serial.println(packetSize);
+    Serial.print("From ");
+    IPAddress remoteIp = Udp.remoteIP();
+    Serial.print(remoteIp);
+    Serial.print(", port ");
+    Serial.println(Udp.remotePort());
+    // read the packet into packetBufffer
+    int len = Udp.read(packetBuffer, 255);
+    if (len > 0) {
+      packetBuffer[len] = 0;
+    }
+    Serial.println("Contents:");
+    Serial.println(packetBuffer);
+    // send a reply, to the IP address and port that sent us the packet we received
+    Udp.print(ReplyBuffer);
+    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    Udp.endPacket();
+  }
   delay(5000);
   u8x8.clear();
   u8x8.drawString(0, 0, "Network: ");
