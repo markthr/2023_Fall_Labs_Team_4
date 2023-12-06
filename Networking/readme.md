@@ -1,15 +1,15 @@
 # Running the Network Demo
 ## Installation
-If you have not installed the local files, first follow the tutorial [here](Networking/environment)
+If you have not installed the local files, first follow the tutorial [here](/Networking/environment)
 
 ## Setup
 First, connect to the internet on a network adapater aside from `wlan0` which will be used for the hotspot
 In the wifi settings menu, this will likely appear as the second option as shown below. This can be verified by checking the devices with `ifconfig`.
-![alt text](Image_Embeds/multiple-adaptors-wifi-linux.png)
+![alt text](/Image_Embeds/multiple-adaptors-wifi-linux.png)
 Do not connect using `wlan0` which corresponds to "Realtek RTL8822CE" on thje Jetson Xavier NX. This adapter will be used for hosting the hotspot.
 
 ## Starting up the Host Network
-The commands for configuring routing and ports for the Jetson are contained in [jetnet-start.sh](Networking/environment/jetnet-start.sh). Execute this script using:
+The commands for configuring routing and ports for the Jetson are contained in [jetnet-start.sh](/Networking/environment/jetnet-start.sh). Execute this script using:
 ```
 sudo bash jetnet-start.sh
 ```
@@ -19,7 +19,7 @@ replaced in each instance to prevent conflict e.g. `JetNet2`.
 
 ## Configure the Network for the Client Device
 The demo code expects a header named `passwd.h` to declare the SSID and password for the hotspot. This file is not committed for security reasons.
-Create a header file named `passwd.h` in the same directory as [main.cpp](Networking/src/main.cpp) For this project, an esp32-v2 client is used.
+Create a header file named `passwd.h` in the same directory as [main.cpp](/Networking/src/main.cpp) For this project, an esp32-v2 client is used.
 
 This header should have form:
 ```
