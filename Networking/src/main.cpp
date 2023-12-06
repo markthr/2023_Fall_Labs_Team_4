@@ -58,15 +58,15 @@ struct motor motors[] = {{M1_IN_1_CHANNEL, M1_IN_2_CHANNEL}, {M2_IN_1_CHANNEL, M
 
 
 void loop() {
-  Serial.println("Loop");
+  //Serial.println("Loop");
   forward(&motors[0], 0);
   forward(&motors[1], 0);
   // print networks on OLED
   //sweepNetwork();
   int packetSize = Udp.parsePacket();
   IPAddress remote_ip = Udp.remoteIP();
-  Serial.println(WiFi.localIP());
-  Serial.println(WiFi.getHostname());
+  //Serial.println(WiFi.localIP());
+  //Serial.println(WiFi.getHostname());
   if (packetSize) {
     Serial.print("Received packet of size ");
     Serial.println(packetSize);
@@ -83,8 +83,8 @@ void loop() {
     Serial.println("Contents:");
     Serial.println(packetBuffer);
     // send a reply, to the IP address and port that sent us the packet we received
-    Udp.print(ReplyBuffer);
     Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    Udp.print(ReplyBuffer);
     Udp.endPacket();
   }
   delay(5000);
