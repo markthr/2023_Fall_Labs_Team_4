@@ -1,6 +1,9 @@
 #ifndef __STATE_H__
 #define __STATE_H__
 
+#include <string>
+#include "state_machine.h"
+
 #define NAME(Variable) (#Variable)
 
 /**
@@ -13,23 +16,41 @@
  */
 
 // TODO: ponder if this being in the namespace of State is nice, is this a good idea for return values too?
-enum class State_Code {Startup, Forward, Branch, Backtrack, Gap, Detection, Stop, _Count};
 
-enum class Branch_Direction {Right, Left};
 
-enum class Return_Value {Loop, Timeout, Intersection, Line_Loss, Complete, _Count};
+class State {
+    public:
+        virtual void entry_behavior() = 0;
+        virtual void do_behavior() = 0;
+        virtual void exit_behavior() = 0;
+        virtual State& get_next_state() = 0;
+        virtual ~State() {}
+};
 
 template<typename I, typename O>
 class Abstract_State {
     public: 
-        explicit Abstract_State(State_Code code) : code(code) {}
-
-        const State_Code code;
+        const std::string name;
 
         virtual void entry_behavior(I&, O&) {}
         virtual void do_behavior(I&, O&) {}
         virtual void exit_behavior(I&, O&) {}
-        virtual Return_Value guard(I&) = 0;
+        virtual Abstract_State& get_next_state(I&) = 0;
+    
+    protected:
+        explicit Abstract_State(std::string name) : name(name){}
+
+
 };
+
+template<typename I, typename O>
+class State_Container : public State {
+    private:
+        I& input;
+        O& output;
+        Abstract_State<I, O>& state;
+    public:
+        explicit State_Container(Abstract_State<I, O>& state, I& input, O& output) : state(state), input(input), output(output) {}
+};;
 
 #endif
