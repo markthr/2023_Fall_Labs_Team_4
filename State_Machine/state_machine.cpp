@@ -17,11 +17,16 @@ void State_Machine<I, O>::iterate() {
 }
 
 template<typename I, typename O>
-void State_Machine<I, O>::operator==(const State_Machine<I, O>& other) {
-    return name == other.name; // assume names are unique
+std::string State_Machine<I, O>::get_state_name() {
+    return current_state.name;
 }
 
 template<typename I, typename O>
-void State_Machine<I, O>::operator==(const State_Machine<I, O>& other) {
-    return !(*this == other); // ensure that == and != are boolean opposites
+bool operator==(const Abstract_State<I, O>& a, const Abstract_State<I, O>& b) {
+    return a.name == b.name; // assume names are unique
+}
+
+template<typename I, typename O>
+bool operator!=(const Abstract_State<I, O>& a, const Abstract_State<I, O>& b) {
+    return !(*a == *b); // ensure that == and != are boolean opposites
 }

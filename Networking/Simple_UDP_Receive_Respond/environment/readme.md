@@ -22,6 +22,10 @@ First, connect to the internet on an adapter that is not he one being configured
 
 edit `/etc/systemd/resolved.conf`to have the line `DNSStubListener=no`
 
+No don't do this. Instead, add bind-interfaces to dnsmasq.conf
+
+To restore internet run,  sudo dnsmasq
+
 This line will likely be included in the file but commented out. Just uncomment it.
 Make sure you set it to `no` as it will by default likely be `yes`.
 
@@ -102,3 +106,10 @@ The command is executed within a `sudo bash -c` in order to have permission for 
 You can verify the changes by greping the file to search for the port configuration (in this case 4000)
 cat /etc/iptables/rules.v4 | grep 4000
 
+#### Configure startup behavior
+Make dnsmasq begin on startup
+`sudo systemctl enable dnsmasq`
+
+Make hostapd begin on startup
+`sudo systemctl unmask hostapd`
+`sudo systemctl enable hostapd`

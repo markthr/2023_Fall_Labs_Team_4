@@ -33,6 +33,7 @@ class State_Machine {
     
     public:
         void iterate();
+        std::string get_state_name();
 };
 
 
