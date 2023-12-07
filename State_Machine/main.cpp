@@ -1,21 +1,8 @@
 #include <array>
 #include <iostream>
 #include <string>
-#include "state.h"
 #include "state_machine.h"
 
-/*
- * Don't overengineer. No need to program for the most general case. Just the case presented in class.
- *
- * Known properties of the course:
- * There are no gaps in a branch. Therefore a line dissapearing means that exploration of the branch is complete.
- * Branches do not themselves have branches. No need to have a stack to push arbitrary numbers of branches.
- * Detection of object of interest can only occur during branches and only at the end of the branch.
- * 
- */
-// use std::array for safety
-// inner array indexes the return values for a given State_Code. 
-// outer array indexes the States
 
 // placeholder for actual input and output
 struct Output {
@@ -51,19 +38,12 @@ class Startup_State : public Abstract_State<Input, Output> {
 
 Input input = {"input"};
 Output output = {"output"};
-class State_Machine {
-    public: 
-        explicit State_Machine() {
-            current_state = new State_Container<Input, Output>(Startup_State::instance(), input, output);
-        }
 
-    private:
-        State* current_state;
-};
+
 
 
 void setup() {
-    State_Machine sm;
+    State_Machine<Input, Output> sm(Startup_State::instance(), input, output);
 }
 
 

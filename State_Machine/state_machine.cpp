@@ -1,22 +1,27 @@
 #include <array>
 #include <iostream>
 #include <string>
-#include "state.h"
 #include "state_machine.h"
 
-void State_Machine::set_next_state(Abstract_State& state) {
-    next_state = state;
+template<typename I, typename O>
+void State_Machine<I, O>::iterate() {
+    current_state.do_behavior(input, output);
+
+    Abstract_State<I, O>& next_state = current_state.get_next_state(input);
+
+    if(next_state != current_state) {
+        current_state.exit_behavior(input, output);
+        current_state = next_state;
+    }
+
 }
 
-void State_Container::entry_behavior() override {
-    state::entry_behavior(input, output);
+template<typename I, typename O>
+void State_Machine<I, O>::operator==(const State_Machine<I, O>& other) {
+    return name == other.name; // assume names are unique
 }
-void State_Container::do_behavior() override {
-    state::do_behavior(input, output);
-}
-void State_Container::exit_behavior() override {
-    state::exit_behavior(input, output);
-}
-State& State_Container::get_next_state() override {
-    return state::get_next_state(input);
+
+template<typename I, typename O>
+void State_Machine<I, O>::operator==(const State_Machine<I, O>& other) {
+    return !(*this == other); // ensure that == and != are boolean opposites
 }
