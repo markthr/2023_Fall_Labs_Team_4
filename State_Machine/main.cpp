@@ -21,7 +21,7 @@ class Startup_State : public Abstract_State<Input, Output> {
         }
         
         
-        Abstract_State& get_next_state(Input& input) override {
+        Abstract_State& get_next_state(const Input& input) override {
             return Startup_State::instance();
         }
 
