@@ -1,7 +1,9 @@
-#include <array>
-#include <iostream>
+#ifndef __STATE_MACHINE_C__
+#define __STATE_MACHINE_C__
+
 #include <string>
-#include "state_machine.h"
+#include "state_machine.hpp"
+
 
 template<typename I, typename O>
 void State_Machine<I, O>::iterate() {
@@ -30,3 +32,5 @@ template<typename I, typename O>
 bool operator!=(const Abstract_State<I, O>& a, const Abstract_State<I, O>& b) {
     return !(*a == *b); // ensure that == and != are boolean opposites
 }
+
+#endif
