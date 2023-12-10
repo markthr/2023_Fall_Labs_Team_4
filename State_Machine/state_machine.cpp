@@ -2,17 +2,18 @@
 #define __STATE_MACHINE_C__
 
 #include <string>
+#include <functional>
 #include "state_machine.hpp"
 
 
 template<typename I, typename O>
 void State_Machine<I, O>::iterate() {
-    current_state.do_behavior(input, output);
+    current_state->do_behavior(input, output);
 
-    Abstract_State<I, O>& next_state = current_state.get_next_state(input);
+    Abstract_State<I, O>* next_state = &current_state->get_next_state(input);
 
-    if(next_state != current_state) {
-        current_state.exit_behavior(input, output);
+    if(*next_state != *current_state) {
+        current_state->exit_behavior(input, output);
         current_state = next_state;
     }
 
@@ -20,17 +21,22 @@ void State_Machine<I, O>::iterate() {
 
 template<typename I, typename O>
 std::string State_Machine<I, O>::get_state_name() {
-    return current_state.name;
+    return current_state->name;
+}
+
+template<typename I, typename O>
+int State_Machine<I, O>::get_state_code() {
+    return current_state->state_code;
 }
 
 template<typename I, typename O>
 bool operator==(const Abstract_State<I, O>& a, const Abstract_State<I, O>& b) {
-    return a.name == b.name; // assume names are unique
+    return a.state_code == b.state_code; // assume state_code is unique
 }
 
 template<typename I, typename O>
 bool operator!=(const Abstract_State<I, O>& a, const Abstract_State<I, O>& b) {
-    return !(*a == *b); // ensure that == and != are boolean opposites
+    return !(a == b); // ensure that == and != are boolean opposites
 }
 
 #endif
