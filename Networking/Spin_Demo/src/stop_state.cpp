@@ -13,7 +13,7 @@ void Stop_State::entry_behavior(const Input& input, Output& output) {
     // TODO: turn on brake
 }
 
-void Stop_State::entry_behavior(const Input& input, Output& output) {
+void Stop_State::do_behavior(const Input& input, Output& output) {
     output.screen.drawString(0, 6, "State: Stop");
 }
 
