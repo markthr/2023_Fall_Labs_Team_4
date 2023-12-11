@@ -28,6 +28,8 @@ class State_Machine {
         
     private:
         Abstract_State<I, O>* current_state; // needs to be a pointer to allow states to change
+        
+    protected:
         I& input;
         O& output;
     
@@ -40,12 +42,12 @@ class State_Machine {
          * Optional function which will be executed before each iteration and processing of transitions
          * Intended for setting the input
         */
-        virtual void fetch_input(I& input) {}
+        virtual void fetch_input() {}
         /**
          * Optional function which will be executed after each iteration and processing of transitions
          * Intended for generating logging or outputs that are needed in all states like UDP
         */
-        virtual void post_iterate(const I& input, O& output) {}
+        virtual void post_iterate() {}
 };
 
 

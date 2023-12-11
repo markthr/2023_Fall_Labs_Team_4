@@ -135,27 +135,29 @@ class Bot_State_Machine : public State_Machine<Input, Output> {
     unsigned int counter = 0; // used to rate limit sending UDP packets
 
   private:
-    void generate_send_packet(Send_Packet& send_packet, const Input& input, const Output& output) {
-      send_packet.angular_acc_x = input.accel.gyro.x;
-      send_packet.angular_acc_y = input.accel.gyro.y;
-      send_packet.angular_acc_z = input.accel.gyro.z;
+    void generate_send_packet() {
+      this->output.send_packet.current_state = this->get_state_code();
+      this->output.send_packet.angular_acc_x = this->input.gyro.gyro.x;
+      this->output.send_packet.angular_acc_y = this->input.gyro.gyro.y;
+      this->output.send_packet.angular_acc_z = this->input.gyro.gyro.z;
+      this->output.send_packet.timestamp = this->input.gyro.timestamp;
     }
 
     void receive_UDP_packet(Receive_Packet& receive_packet) {
-      int packetSize = udp.parsePacket();
+      int packetSize = this->udp.parsePacket();
       if (packetSize) {
         // logging for debug
         Serial.print("Received packet of size ");
         Serial.println(packetSize);
         Serial.print("From ");
-        Serial.print(udp.remoteIP());
+        Serial.print(this->udp.remoteIP());
         Serial.print(", port ");
-        Serial.println(udp.remotePort());
+        Serial.println(this->udp.remotePort());
 
         // read the packet into packetBufffer
-        int len = udp.read(receive_buffer, 255);
+        int len = this->udp.read(receive_buffer, 255);
         if (len > 0) {
-          receive_buffer[len] = 0;
+          this->receive_buffer[len] = 0;
         }
 
         // logging for debug
@@ -164,8 +166,8 @@ class Bot_State_Machine : public State_Machine<Input, Output> {
         
         // save ip if first receive
         if(!remote_ip_init) {
-          remote_ip = udp.remoteIP();
-          remote_port = udp.remotePort();
+          remote_ip = this->udp.remoteIP();
+          remote_port = this->udp.remotePort();
           remote_ip_init = true;
         }
         deserialize_receive_packet(receive_packet, receive_buffer);
@@ -178,18 +180,18 @@ class Bot_State_Machine : public State_Machine<Input, Output> {
     }
   
   public:
-    void fetch_input(Input& input) override{
-      mpu.getEvent(&input.accel, &input.gyro, &input.temp);
-      receive_UDP_packet(input.receive_packet);
+    void fetch_input() override{
+      mpu.getEvent(&this->input.accel, &this->input.gyro, &this->input.temp);
+      receive_UDP_packet(this->input.receive_packet);
     }
 
-    void post_iterate(const Input& input, Output& output) override {
-      if(remote_ip_init && counter % PACKET_DECIMATION_RATE == 0) {
-        generate_send_packet(output.send_packet, input, output);
-        serialize_send_packet(output.send_packet, reply_buffer, UDP_BUF_LEN);
+    void post_iterate() override {
+      if(this->remote_ip_init && this->counter++ % PACKET_DECIMATION_RATE == 0) {
+        generate_send_packet();
+        serialize_send_packet(this->output.send_packet, this->reply_buffer, UDP_BUF_LEN);
 
-        udp.beginPacket(remote_ip, remote_port);
-        udp.print(reply_buffer);
+        udp.beginPacket(this->remote_ip, this->remote_port);
+        udp.print(this->reply_buffer);
         udp.endPacket();
       }
   }
@@ -203,20 +205,21 @@ void setup() {
   Serial.println("Setup Motors");
   //init_adc();
   
-  setup_motors();
+  left_motor.init(M1_IN_1, M1_IN_2, M1_I_SENSE);
+  right_motor.init(M2_IN_1, M2_IN_2, M2_I_SENSE);
   Serial.println("Stop Motors");
-  forward(&left_motor, 0);
-  forward(&right_motor, 0);
+  left_motor.stop();
+  right_motor.stop();
 
-  //init_mpu();
+  init_mpu();
   Serial.println("Setup Screen");
   init_screen();
   
-  // init_wifi();
+  init_wifi();
 }
 
 void loop() {
-
+  sm.fetch_input();
   sm.iterate();
-
+  sm.post_iterate();
 }
