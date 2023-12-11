@@ -19,6 +19,9 @@
 #define STOP_STATE_CODE 2
 #define SPIN_STATE_CODE 3
 
+#define STOP_STATE_LEN_MILLIS 200
+#define SPIN_ROTATION_TOLERANCE 2
+
 struct Encoder {
 
 };
@@ -36,21 +39,22 @@ struct Input {
 };
 
 struct Output {
-  const Motor& left;
-  const Motor& right;
+  Motor& left_motor;
+  Motor& right_motor;
   U8X8_SSD1306_128X64_NONAME_SW_I2C& screen;
   Send_Packet& send_packet;
 
-  Output(Motor& left, Motor& right, U8X8_SSD1306_128X64_NONAME_SW_I2C& screen, Send_Packet& send_packet)
-  : left(left), right(right), screen(screen), send_packet(send_packet) {}
+  Output(Motor& left_motor, Motor& right_motor, U8X8_SSD1306_128X64_NONAME_SW_I2C& screen, Send_Packet& send_packet)
+  : left_motor(left_motor), right_motor(right_motor), screen(screen), send_packet(send_packet) {}
 };
 
 class Startup_State : public Abstract_State<Input, Output> {
     public:
         static Startup_State& instance();
 
-        Abstract_State<Input, Output>& get_next_state(const Input& input) override;
         void do_behavior(const Input& input, Output& output) override;
+        void entry_behavior(const Input& input, Output& output) override;
+        Abstract_State<Input, Output>& get_next_state(const Input& input) override;
 
     private:
         Startup_State()
@@ -62,6 +66,7 @@ class Rest_State : public Abstract_State<Input, Output> {
         static Rest_State& instance();
         
         void do_behavior(const Input& input, Output& output) override;
+        void entry_behavior(const Input& input, Output& output) override;
         Abstract_State<Input, Output>& get_next_state(const Input& input) override;
 
     private:
@@ -70,6 +75,8 @@ class Rest_State : public Abstract_State<Input, Output> {
 };
 
 class Stop_State : public Abstract_State<Input, Output> {
+    private:
+        unsigned long entry_time;
     public:
         static Stop_State& instance();
         
@@ -86,13 +93,14 @@ class Stop_State : public Abstract_State<Input, Output> {
 class Spin_State : public Abstract_State<Input, Output> {
     private:
         float rotation;
+        float integral_error;
         long prev_timestamp;
     public:
         static Spin_State& instance();
 
         void entry_behavior(const Input& input, Output& output) override;
-        Abstract_State<Input, Output>& get_next_state(const Input& input) override;
         void do_behavior(const Input& input, Output& output) override;
+        Abstract_State<Input, Output>& get_next_state(const Input& input) override;
 
     private:
         Spin_State()

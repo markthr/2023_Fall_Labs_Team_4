@@ -1,33 +1,67 @@
 #include <Arduino.h>
+#include <cmath>
 #include "motors.hpp"
 
 
-void setup_motors() {
-    ledcSetup(M1_IN_1_CHANNEL, freq, resolution);
-    ledcSetup(M1_IN_2_CHANNEL, freq, resolution);
-    ledcSetup(M2_IN_1_CHANNEL, freq, resolution);
-    ledcSetup(M2_IN_2_CHANNEL, freq, resolution);
+void Motor::init(uint32_t in1, uint32_t in2, uint32_t i_sense, uint32_t frequency, uint32_t resolution) {
+    ledcSetup(this->in1_channel, frequency, resolution);
+    ledcSetup(this->in2_channel, frequency, resolution);
 
-    ledcAttachPin(M1_IN_1, M1_IN_1_CHANNEL);
-    ledcAttachPin(M1_IN_2, M1_IN_2_CHANNEL);
-    ledcAttachPin(M2_IN_1, M2_IN_1_CHANNEL);
-    ledcAttachPin(M2_IN_2, M2_IN_2_CHANNEL);
+    ledcAttachPin(in1, this->in1_channel);
+    ledcAttachPin(in2, this->in2_channel);
 
-    pinMode(M1_I_SENSE, INPUT);
-    pinMode(M2_I_SENSE, INPUT);
+    pinMode(i_sense, INPUT);
+
+    // compute 2^resolution - 1
+    this->pwm_max = (1<<resolution) - 1;
 }
 
-void forward(struct Motor* m, uint32_t duty){
-  ledcWrite(m->in1, 0);
-  ledcWrite(m->in2, duty);
+void Motor::brake() {
+    ledcWrite(this->in1_channel, pwm_max);
+    ledcWrite(this->in2_channel, pwm_max);
 }
 
-void backward(struct Motor* m, uint32_t duty){
-  ledcWrite(m->in1, duty);
-  ledcWrite(m->in2, 0);
+void Motor::stop() {
+    ledcWrite(this->in1_channel, 0);
+    ledcWrite(this->in2_channel, 0);
 }
 
-void brake(struct Motor* m) {
-  ledcWrite(m->in1, 1023);
-  ledcWrite(m->in2, 1023);
+void Motor::set_pwm(int32_t duty){
+    if(duty > 255) {
+        duty = 255;
+    }
+    else if (duty < -255) {
+        duty = -255;
+    }
+
+    if (duty > 0) {
+        ledcWrite(this->in1_channel, 0);
+        ledcWrite(this->in2_channel, (uint32_t)(duty));
+    }
+    else {
+        ledcWrite(this->in1_channel, (uint32_t)-duty);
+        ledcWrite(this->in2_channel, 0);
+    }
 }
+
+void Motor::set_pwm(float duty){
+    if (isnan(duty)) {
+        duty = 0.0;
+    }
+    else if (duty > 255.0) {
+        duty  =  255.0;
+    }
+    else if (duty < -255) {
+        duty = -255;
+    }
+
+    if (duty > 0) {
+        ledcWrite(this->in1_channel, 0);
+        ledcWrite(this->in2_channel, (uint32_t)(duty));
+    }
+    else {
+        ledcWrite(this->in1_channel, (uint32_t)-duty);
+        ledcWrite(this->in2_channel, 0);
+    }
+}
+
