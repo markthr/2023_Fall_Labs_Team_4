@@ -3,8 +3,11 @@ import pyaudio
 from scipy.signal import periodogram
 
 
+
 def detect_voice():
 
+    global global_detect
+    global_detect = 0
     CHUNK = 128
     RATE = 44100
     detect = False
@@ -35,7 +38,7 @@ def detect_voice():
     stream.close()
     p.terminate()
 
+    global_detect = 1
     return detect
 
-detect_voice()
 
