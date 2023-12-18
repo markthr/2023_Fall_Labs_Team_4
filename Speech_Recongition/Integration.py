@@ -1,15 +1,25 @@
 import Detect_Voice
 import threading
-import time
-import time
 import re
 import speech_recognition as sr
 import socket
+import time
 
+# Note: need to start bot then python script
 UDP_IP = "192.168.2.32"
 UDP_PORT = 2390
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
 bot_running = False
+
+
+
+def convert_time(input):
+    parts = input.split(':')
+    ms = int(parts[3])
+    s = int(parts[2])
+    min = int(parts[1])
+    hr = int(parts[0])
+    return str(ms + 1000*s + 60000*min + 3600000*hr)
 
 
 # this is called from the background thread
@@ -20,13 +30,14 @@ def callback(recognizer, audio):
         # to use another API key, use `r.recognize_google(audio, key="GOOGLE_SPEECH_RECOGNITION_API_KEY")`
         # instead of `r.recognize_google(audio)`
         print("Google Speech Recognition thinks you said: " + recognizer.recognize_google(audio))
-        matches = re.search('(spin)',recognizer.recognize_google(audio))
+        matches = re.search('(spin|walk|stay|fetch)',recognizer.recognize_google(audio))
         print(matches)
         if (matches != None):
             if (matches.group(0) == 'spin'):
-                    sock.sendto(bytes("0,3", "utf-8"), (UDP_IP, UDP_PORT))
-                    global bot_running
-                    bot_running = True
+                    print(last_recv_time)
+                    print(convert_time(last_recv_time))
+                    sock.sendto(bytes(convert_time(last_recv_time)+",3", "utf-8"), (UDP_IP, UDP_PORT))
+
 
 # this code shiesty af, sorry to whoever is looking at it
 # basically just trusting that the bot is in the right state, no checks
@@ -45,19 +56,32 @@ with m as source:
 # start listening in the background (note that we don't have to do this inside a `with` statement)
 stop_listening = r.listen_in_background(m, callback)
 # `stop_listening` is now a function that, when called, stops background listening
+
+# send stop at start of loop so packets can be received for timestamps
+sock.sendto(bytes("0,2", "utf-8"), (UDP_IP, UDP_PORT))
 while (True):
+    recv = str(sock.recv(256), "utf-8")
+    split_str = recv.split(",")
+    last_recv_time = split_str[0]
+
     if (bot_running==True):
         t1 = threading.Thread(target=Detect_Voice.detect_voice)
         t1.start()
         # This represents other functions occuring in python while bot is running
         while(Detect_Voice.global_detect != 1):
-            print("bot is running")
-            time.sleep(1)
-        sock.sendto(bytes("0,2", "utf-8"), (UDP_IP, UDP_PORT))
+            # this control flow is brain damaged
+            # put camera processing here
+            recv = str(sock.recv(256), "utf-8")
+            #print(recv)
+
+        # parse time from last packet received
+        split_str = recv.split(",")
+        last_recv_time = split_str[0]
+        sock.sendto(bytes(convert_time(last_recv_time)+",2", "utf-8"), (UDP_IP, UDP_PORT))
         print("stopped bot")
         bot_running = False
-        # wait 3 seconds after stopping
-        time.sleep(3)
+
+       
 
         
     
