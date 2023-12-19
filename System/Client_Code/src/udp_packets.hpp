@@ -10,6 +10,9 @@ struct Receive_Packet {
     bool valid = false; // this flag indicates if the incoming packet was ill-formed
     unsigned long timestamp;
     unsigned int next_state;
+    bool ball_detected;
+    float ball_offset_x;
+    float ball_offset_y;
 };
 
 struct Send_Packet {

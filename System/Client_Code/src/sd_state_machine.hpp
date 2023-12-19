@@ -18,6 +18,7 @@
 #define REST_STATE_CODE 1
 #define STOP_STATE_CODE 2
 #define SPIN_STATE_CODE 3
+#define BALL_STATE_CODE 4
 
 #define STOP_STATE_LEN_MILLIS 200
 #define SPIN_ROTATION_TOLERANCE 2
@@ -104,7 +105,27 @@ class Spin_State : public Abstract_State<Input, Output> {
 
     private:
         Spin_State()
-        : Abstract_State("Startup", SPIN_STATE_CODE) {}
+        : Abstract_State("Spin", SPIN_STATE_CODE) {}
+};
+
+class Ball_State : public Abstract_State<Input, Output> {
+    private:
+        float integral_error;
+        float derivative_error;
+        float prev_offset_x;
+        bool timeout;
+        long prev_timestamp;
+
+    public:
+        static Ball_State& instance();
+
+        void entry_behavior(const Input& input, Output& output) override;
+        void do_behavior(const Input& input, Output& output) override;
+        Abstract_State<Input, Output>& get_next_state(const Input& input) override;
+
+    private:
+        Ball_State()
+        : Abstract_State("Ball State", BALL_STATE_CODE) {}
 };
 
 #endif
